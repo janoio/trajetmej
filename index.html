@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Générateur de trajets équipes / étapes</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f5f7fb;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 32px auto;
+      padding: 0 16px 32px;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      padding: 20px;
+      margin-bottom: 18px;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 28px;
+    }
+    p.note {
+      margin: 0;
+      line-height: 1.5;
+      color: #4b5563;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      align-items: end;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 16px;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 15px;
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+      font-weight: 600;
+    }
+    button.secondary {
+      background: #475569;
+    }
+    button:hover { opacity: 0.95; }
+    .error {
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+      padding: 12px;
+      border-radius: 10px;
+      margin-top: 14px;
+      display: none;
+      white-space: pre-wrap;
+    }
+    .success {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+      padding: 12px;
+      border-radius: 10px;
+      margin-top: 14px;
+      display: none;
+    }
+    .section-title {
+      margin: 0 0 14px;
+      font-size: 22px;
+    }
+    .result-block {
+      margin-bottom: 18px;
+      padding: 14px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #fafafa;
+    }
+    .route {
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+    .tour {
+      margin: 8px 0 0;
+      padding-left: 16px;
+      line-height: 1.7;
+    }
+    .muted {
+      color: #6b7280;
+    }
+
+    .login-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+    }
+    .login-card {
+      width: 100%;
+      max-width: 440px;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.10);
+      padding: 28px;
+    }
+    .login-card h2 {
+      margin: 0 0 10px;
+      font-size: 26px;
+    }
+    .login-card p {
+      margin: 0 0 18px;
+      color: #4b5563;
+      line-height: 1.5;
+    }
+    .login-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .login-error {
+      display: none;
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <h2>Accès protégé</h2>
+      <p>Veuillez entrer le code d'accès pour rejoindre le site.</p>
+
+      <label for="accessCode">Code d'accès</label>
+      <input id="accessCode" type="password" placeholder="Entrez le code" autocomplete="current-password" />
+
+      <div class="login-actions">
+        <button id="joinBtn">Rejoindre</button>
+      </div>
+
+      <div id="loginError" class="login-error">Code incorrect. Veuillez réessayer.</div>
+    </div>
+  </div>
+
+  <div id="appContent" class="hidden">
+    <div class="container">
+      <div class="card">
+        <h1>Générateur de trajets équipes / étapes</h1>
+        <p class="note">
+          Entrez le nombre d'équipes et le nombre d'étapes, puis cliquez sur <strong>Générer</strong>.
+          Le site affiche le trajet de chaque équipe et le trajet de chaque étape.
+          <br><br>
+          Règles du modèle : le nombre d'équipes doit être pair, et il faut <strong>nombre d'équipes ≤ 2 × nombre d'étapes</strong>.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="grid">
+          <div>
+            <label for="teams">Nombre d'équipes</label>
+            <input id="teams" type="number" min="2" value="8" />
+          </div>
+          <div>
+            <label for="stages">Nombre d'étapes</label>
+            <input id="stages" type="number" min="1" value="6" />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="generateBtn">Générer</button>
+          <button class="secondary" id="example86">Exemple 8 équipes / 6 étapes</button>
+          <button class="secondary" id="example65">Exemple 6 équipes / 5 étapes</button>
+        </div>
+
+        <div id="errorBox" class="error"></div>
+        <div id="successBox" class="success"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Trajet de chaque équipe</h2>
+        <div id="teamResults" class="muted">Aucun résultat pour le moment.</div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Trajet de chaque étape</h2>
+        <div id="stageResults" class="muted">Aucun résultat pour le moment.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SITE_ACCESS_CODE = "janoio@2703970";
+
+    class ScheduleError extends Error {}
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function generateSchedule(numTeams, numStages, maxTries = 400) {
+      if (!Number.isInteger(numTeams) || !Number.isInteger(numStages)) {
+        throw new ScheduleError("Veuillez entrer des nombres entiers.");
+      }
+
+      if (numTeams <= 0 || numStages <= 0) {
+        throw new ScheduleError("Le nombre d'équipes et le nombre d'étapes doivent être strictement positifs.");
+      }
+
+      if (numTeams % 2 !== 0) {
+        throw new ScheduleError("Impossible : le nombre d'équipes doit être pair, car chaque étape prend 2 équipes.");
+      }
+
+      if (numTeams > 2 * numStages) {
+        throw new ScheduleError("Impossible : il faut nombre d'équipes ≤ 2 × nombre d'étapes.");
+      }
+
+      const teams = Array.from({ length: numTeams }, (_, i) => i);
+      const stages = Array.from({ length: numStages }, (_, i) => i);
+
+      function pairKey(a, b) {
+        return a < b ? `${a}-${b}` : `${b}-${a}`;
+      }
+
+      for (let attempt = 0; attempt < maxTries; attempt++) {
+        const teamStageUsed = Array.from({ length: numTeams }, () => new Set());
+        const pairHistory = new Map();
+        const rounds = Array.from({ length: numStages }, () => ({}));
+
+        function solveRound(r) {
+          if (r === numStages) return true;
+
+          const currentRound = {};
+          const teamsRemaining = new Set(teams);
+          const stagesFree = new Set(stages);
+
+          function availableStagesForTeam(t) {
+            const arr = [];
+            for (const s of stagesFree) {
+              if (!teamStageUsed[t].has(s)) arr.push(s);
+            }
+            return arr;
+          }
+
+          function backtrackPairs() {
+            if (teamsRemaining.size === 0) {
+              rounds[r] = { ...currentRound };
+              return solveRound(r + 1);
+            }
+
+            const constrained = Array.from(teamsRemaining).map(t => ({
+              t,
+              count: availableStagesForTeam(t).length,
+              rnd: Math.random()
+            })).sort((a, b) => a.count - b.count || a.rnd - b.rnd);
+
+            const t = constrained[0].t;
+            const partnerOptions = [];
+
+            for (const u of teamsRemaining) {
+              if (u === t) continue;
+
+              const commonStages = [];
+              for (const s of stagesFree) {
+                if (!teamStageUsed[t].has(s) && !teamStageUsed[u].has(s)) {
+                  commonStages.push(s);
+                }
+              }
+
+              if (commonStages.length === 0) continue;
+
+              const key = pairKey(t, u);
+              partnerOptions.push({
+                u,
+                commonStages,
+                repeated: pairHistory.get(key) || 0,
+                rnd: Math.random()
+              });
+            }
+
+            partnerOptions.sort((a, b) => {
+              if (a.repeated !== b.repeated) return a.repeated - b.repeated;
+              if (a.commonStages.length !== b.commonStages.length) return a.commonStages.length - b.commonStages.length;
+              return a.rnd - b.rnd;
+            });
+
+            for (const option of partnerOptions) {
+              const u = option.u;
+              const stageOptions = shuffle([...option.commonStages]);
+
+              for (const s of stageOptions) {
+                const key = pairKey(t, u);
+
+                teamsRemaining.delete(t);
+                teamsRemaining.delete(u);
+                stagesFree.delete(s);
+                teamStageUsed[t].add(s);
+                teamStageUsed[u].add(s);
+                pairHistory.set(key, (pairHistory.get(key) || 0) + 1);
+                currentRound[s] = [t, u];
+
+                if (backtrackPairs()) return true;
+
+                delete currentRound[s];
+                const newCount = (pairHistory.get(key) || 1) - 1;
+                if (newCount <= 0) pairHistory.delete(key);
+                else pairHistory.set(key, newCount);
+                teamStageUsed[t].delete(s);
+                teamStageUsed[u].delete(s);
+                stagesFree.add(s);
+                teamsRemaining.add(t);
+                teamsRemaining.add(u);
+              }
+            }
+
+            return false;
+          }
+
+          return backtrackPairs();
+        }
+
+        if (solveRound(0)) return rounds;
+      }
+
+      throw new ScheduleError("Aucun planning trouvé. Essayez avec d'autres valeurs.");
+    }
+
+    function buildTeamRoutes(rounds, numTeams, numStages) {
+      const teamRoutes = {};
+      for (let team = 0; team < numTeams; team++) {
+        teamRoutes[team] = Array(numStages).fill(null);
+      }
+
+      rounds.forEach((roundData, r) => {
+        Object.entries(roundData).forEach(([stage, pair]) => {
+          pair.forEach(team => {
+            teamRoutes[team][r] = Number(stage);
+          });
+        });
+      });
+
+      return teamRoutes;
+    }
+
+    function buildStageRoutes(rounds, numStages) {
+      const stageRoutes = {};
+      for (let stage = 0; stage < numStages; stage++) {
+        stageRoutes[stage] = [];
+      }
+
+      rounds.forEach((roundData, r) => {
+        for (let stage = 0; stage < numStages; stage++) {
+          if (Object.prototype.hasOwnProperty.call(roundData, stage)) {
+            const [t1, t2] = roundData[stage];
+            stageRoutes[stage].push({ round: r, t1, t2 });
+          } else {
+            stageRoutes[stage].push({ round: r, t1: null, t2: null });
+          }
+        }
+      });
+
+      return stageRoutes;
+    }
+
+    function renderResults(rounds, numTeams, numStages) {
+      const teamRoutes = buildTeamRoutes(rounds, numTeams, numStages);
+      const stageRoutes = buildStageRoutes(rounds, numStages);
+
+      const teamResults = document.getElementById("teamResults");
+      const stageResults = document.getElementById("stageResults");
+
+      teamResults.innerHTML = "";
+      stageResults.innerHTML = "";
+
+      for (let team = 0; team < numTeams; team++) {
+        const route = teamRoutes[team].map(stage => `Étape ${stage + 1}`).join(" → ");
+        const block = document.createElement("div");
+        block.className = "result-block route";
+        block.textContent = `Équipe ${team + 1} : ${route}`;
+        teamResults.appendChild(block);
+      }
+
+      for (let stage = 0; stage < numStages; stage++) {
+        const block = document.createElement("div");
+        block.className = "result-block";
+
+        const title = document.createElement("div");
+        title.innerHTML = `<strong>Étape ${stage + 1}</strong>`;
+        block.appendChild(title);
+
+        const list = document.createElement("div");
+        list.className = "tour";
+
+        stageRoutes[stage].forEach(item => {
+          const line = document.createElement("div");
+          if (item.t1 === null) {
+            line.textContent = `Tour ${item.round + 1} : ---`;
+          } else {
+            line.textContent = `Tour ${item.round + 1} : Équipe ${item.t1 + 1} et Équipe ${item.t2 + 1}`;
+          }
+          list.appendChild(line);
+        });
+
+        block.appendChild(list);
+        stageResults.appendChild(block);
+      }
+    }
+
+    function showError(message) {
+      const errorBox = document.getElementById("errorBox");
+      const successBox = document.getElementById("successBox");
+      errorBox.style.display = "block";
+      errorBox.textContent = message;
+      successBox.style.display = "none";
+      successBox.textContent = "";
+    }
+
+    function showSuccess(message) {
+      const errorBox = document.getElementById("errorBox");
+      const successBox = document.getElementById("successBox");
+      successBox.style.display = "block";
+      successBox.textContent = message;
+      errorBox.style.display = "none";
+      errorBox.textContent = "";
+    }
+
+    function runGeneration() {
+      const numTeams = parseInt(document.getElementById("teams").value, 10);
+      const numStages = parseInt(document.getElementById("stages").value, 10);
+
+      try {
+        const rounds = generateSchedule(numTeams, numStages);
+        renderResults(rounds, numTeams, numStages);
+        showSuccess("Planning généré avec succès.");
+      } catch (error) {
+        showError(error.message || "Une erreur s'est produite.");
+      }
+    }
+
+    function unlockSite() {
+      const codeInput = document.getElementById("accessCode");
+      const loginError = document.getElementById("loginError");
+
+      if (codeInput.value === SITE_ACCESS_CODE) {
+        document.getElementById("loginScreen").classList.add("hidden");
+        document.getElementById("appContent").classList.remove("hidden");
+        loginError.style.display = "none";
+        runGeneration();
+      } else {
+        loginError.style.display = "block";
+      }
+    }
+
+    document.getElementById("joinBtn").addEventListener("click", unlockSite);
+    document.getElementById("accessCode").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") unlockSite();
+    });
+
+    document.getElementById("generateBtn").addEventListener("click", runGeneration);
+
+    document.getElementById("example86").addEventListener("click", () => {
+      document.getElementById("teams").value = 8;
+      document.getElementById("stages").value = 6;
+      runGeneration();
+    });
+
+    document.getElementById("example65").addEventListener("click", () => {
+      document.getElementById("teams").value = 6;
+      document.getElementById("stages").value = 5;
+      runGeneration();
+    });
+  </script>
+</body>
+</html>
